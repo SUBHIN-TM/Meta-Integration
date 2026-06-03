@@ -174,3 +174,20 @@ Incoming webhook: {
     }
   ]
 }
+
+
+Who sent the first message? (Company side)
+
+Company
+↓
+Customer
+
+Template Required
+
+Who sent the first message? (Customer side)
+
+Customer
+↓
+Company
+
+Normal Text Allowed

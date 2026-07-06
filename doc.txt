@@ -1,0 +1,6 @@
+node server.js
+ngrok http 3005
+ A webhook is always the URL of whoever wants to RECEIVE the data.
+
+http://localhost:3005/health
+http://localhost:3005/meta-notifications

@@ -10,29 +10,46 @@
 |   So that when a value changes (a token, the port, the Meta API version),
 |   we change it in ONE place, and the whole app picks it up.
 |
-| WHO USES IT:
-|   The WhatsApp service (needs the token + phone number id), the webhook
-|   controller (needs the verify token), and server.js (needs the port).
+| TWO WHATSAPP NUMBERS NOW:
+|   We run TWO numbers side by side, each with its OWN credentials and its OWN
+|   webhook path — but BOTH inside the SAME server on the SAME port:
+|     - "test"       -> the original Meta sandbox test number  (/webhook)
+|     - "production"  -> the real Interval Connect number       (/webhook-interval)
+|   The production values come from the "_2" variables in .env.
 |==============================================================================
 */
 
 require("dotenv").config(); // loads the .env file into process.env
 
 const config = {
-  // The port our server listens on (from .env, e.g. 3005)
+  // The port our server listens on (from .env, e.g. 3005). ONE port for BOTH
+  // numbers — they are told apart by their webhook path, not by the port.
   port: process.env.PORT,
-
-  // Secret word Meta and we both agree on, used only during webhook setup
-  verifyToken: process.env.VERIFY_TOKEN,
-
-  // The permanent access token that lets us call Meta's API to send messages
-  whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-
-  // The ID of our WhatsApp phone number (from Meta > WhatsApp > API Setup)
-  phoneNumberId: process.env.PHONE_NUMBER_ID,
 
   // Meta Graph API version we call. Kept here so upgrades are a one-line change.
   graphApiVersion: "v25.0",
+
+  // Each account is fully self-contained: its verify token, its access token,
+  // its phone number id, and the webhook path Meta should call for it.
+  accounts: {
+    // ORIGINAL Meta test number — unchanged, still on /webhook
+    test: {
+      label: "test",
+      webhookPath: "/webhook",
+      verifyToken: process.env.VERIFY_TOKEN,
+      whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: process.env.PHONE_NUMBER_ID,
+    },
+
+    // NEW production number (Interval Connect app) — reads the "_2" values
+    production: {
+      label: "interval",
+      webhookPath: "/webhook-interval",
+      verifyToken: process.env.VERIFY_TOKEN_2,
+      whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN_2,
+      phoneNumberId: process.env.PHONE_NUMBER_ID_2,
+    },
+  },
 };
 
 module.exports = config;

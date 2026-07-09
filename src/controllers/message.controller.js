@@ -6,6 +6,11 @@
 |   The "brain" for the endpoints where OUR app sends a message to a user.
 |   (Different from the webhook: here WE start the action, not Meta.)
 |
+| TWO NUMBERS:
+|   The request can say which number to send from with an "account" field:
+|     "test"        -> the Meta test number      (default if omitted)
+|     "production"   -> the Interval Connect number
+|
 | TWO ENDPOINTS:
 |   1) sendManual()  -> POST /send          (used by the dashboard reply popup)
 |   2) sendEcho()    -> POST /send-message  (a demo "you said: ..." echo route)
@@ -15,9 +20,15 @@
 const eventStore = require("../services/eventStore.service");
 const whatsapp = require("../services/whatsapp.service");
 
-// 1) MANUAL SEND — the dashboard popup POSTs { to, text } here
+// Choose which number's sender to use. Defaults to the test number so old
+// callers (that don't pass "account") keep behaving exactly as before.
+function pickSender(account) {
+  return account === "production" ? whatsapp.production : whatsapp.test;
+}
+
+// 1) MANUAL SEND — the dashboard popup POSTs { to, text, account? } here
 async function sendManual(req, res) {
-  const { to, text } = req.body || {};
+  const { to, text, account } = req.body || {};
 
   // Basic validation so we don't call Meta with missing data
   if (!to || !text) {
@@ -25,7 +36,8 @@ async function sendManual(req, res) {
   }
 
   try {
-    const data = await whatsapp.sendTextMessage(to, text); // throws on failure
+    const sender = pickSender(account);
+    const data = await sender.sendTextMessage(to, text); // throws on failure
     const wamid = data?.messages?.[0]?.id;
 
     // Show it instantly in the dashboard as an outgoing (right-side) bubble
@@ -37,6 +49,7 @@ async function sendManual(req, res) {
       who: `to  ${to}`,
       detail: text,
       id: wamid,
+      source: account === "production" ? "interval" : "test",
     });
 
     return res.json({ ok: true, id: wamid });
@@ -63,7 +76,8 @@ async function sendEcho(req, res) {
 
     console.log("FROM:", from, "TEXT: ", text);
 
-    await whatsapp.sendTemplateMessage(from); // sends the hello_world template
+    const sender = pickSender(req.body?.account);
+    await sender.sendTemplateMessage(from); // sends the hello_world template
 
     return res.sendStatus(200);
   } catch (error) {

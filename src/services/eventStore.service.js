@@ -51,8 +51,12 @@ function clearEvents() {
 |   A single webhook can contain either:
 |     - messages[]  -> the USER sent us something  (direction "in")
 |     - statuses[]  -> status of a reply WE sent   (direction "out")
+|
+|   "source" tags which number the event came from ("test" or "interval") so
+|   the dashboard can tell the two numbers apart. It's optional and defaults to
+|   "" so any old caller keeps working.
 */
-function recordWebhook(body) {
+function recordWebhook(body, source = "") {
   const value = body?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return;
 
@@ -71,6 +75,7 @@ function recordWebhook(body) {
         name: name || "",
         detail: m.type === "text" ? m.text?.body : `[${m.type} message]`,
         id: m.id,
+        source,
       });
     }
   }
@@ -88,6 +93,7 @@ function recordWebhook(body) {
         billable: s.pricing ? `${s.pricing.billable} (${s.pricing.category})` : "",
         error: s.errors ? JSON.stringify(s.errors) : "",
         id: s.id,
+        source,
       });
     }
   }

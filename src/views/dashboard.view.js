@@ -101,6 +101,7 @@ function renderDashboardHtml() {
   <script>
     function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
     let replyTo = null;
+    let replySource = null; // which number the message came in on: "interval" or "test"
 
     async function clearAll(){
       if(!confirm('Clear all notifications from the dashboard?')) return;
@@ -108,9 +109,11 @@ function renderDashboardHtml() {
       catch(err){/* ignore */}
     }
 
-    function openReply(phone, name){
+    function openReply(phone, name, source){
       replyTo = phone;
-      document.getElementById('modalTo').textContent = '👤 To: ' + (name ? name + '  ·  ' : '') + phone;
+      replySource = source || '';
+      const via = replySource === 'interval' ? '  (via Interval Connect)' : replySource === 'test' ? '  (via Test number)' : '';
+      document.getElementById('modalTo').textContent = '👤 To: ' + (name ? name + '  ·  ' : '') + phone + via;
       document.getElementById('modalText').value = '';
       const msg = document.getElementById('modalMsg'); msg.textContent=''; msg.className='msg';
       document.getElementById('overlay').classList.add('show');
@@ -126,7 +129,8 @@ function renderDashboardHtml() {
       const btn = document.getElementById('sendBtn'); btn.disabled=true;
       msg.className='msg'; msg.textContent='Sending…';
       try{
-        const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:replyTo,text})});
+        const account = replySource === 'interval' ? 'production' : 'test';
+        const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:replyTo,text,account})});
         const d = await r.json();
         if(d.ok){ msg.className='msg ok'; msg.textContent='✅ Sent!'; load(); setTimeout(closeReply, 700); }
         else { msg.className='msg err'; msg.textContent='❌ '+ (d.error||'Failed'); }
@@ -140,7 +144,7 @@ function renderDashboardHtml() {
         const el = document.getElementById('list');
         if(!data.length){el.innerHTML='<div class="empty">Waiting for webhooks… send a WhatsApp message to your number.</div>';return}
         el.innerHTML = data.map(e=>\`
-          <div class="row \${esc(e.direction)} \${esc(e.kind)}" \${e.direction==='in'?\`onclick="openReply('\${esc(e.phone)}','\${esc(e.name||'')}')"\`:''}>
+          <div class="row \${esc(e.direction)} \${esc(e.kind)}" \${e.direction==='in'?\`onclick="openReply('\${esc(e.phone)}','\${esc(e.name||'')}','\${esc(e.source||'')}')"\`:''}>
             <span class="dir">\${esc(e.dirLabel||'')}</span>
             <div class="top">
               <span class="badge">\${esc(e.title)}</span>

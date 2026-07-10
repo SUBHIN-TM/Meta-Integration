@@ -17,8 +17,9 @@
 |   1) verifyWebhook()  -> the ONE-TIME handshake when you register the URL
 |                          in Meta (checks THIS account's verify token).
 |   2) receiveWebhook() -> runs EVERY time an event happens (message, status).
-|                          It records the event for the dashboard and, if a
-|                          user texted us, auto-replies from THIS account.
+|                          It records the event for the dashboard and, ONLY if
+|                          the user's message is a "hi" greeting, auto-replies
+|                          from THIS account. Any other message: no auto-reply.
 |==============================================================================
 */
 
@@ -67,19 +68,23 @@ function createWebhookController(account, sender) {
       }
 
       const from = message.from;
-      const text = message?.text?.body || "Message received";
+      const text = message?.text?.body || "";
 
       console.log(`[${account.label}] FROM:`, from);
       console.log(`[${account.label}] TEXT:`, text);
 
-      // Auto-reply to the user FROM THIS SAME NUMBER (free text — 24h window)
-      await sender.replyMessage(
-        from,
-        `We received your message: "${text}"
+      // Only auto-reply to a greeting. We match the word "hi" in any casing
+      // ("hi", "Hi", "HI", "oh hi there") but NOT inside other words like
+      // "this" or "ship" (the \b word boundaries take care of that).
+      // Any other message is recorded for the dashboard but gets no auto-reply.
+      const isGreeting = /\bhi\b/i.test(text);
 
-Thank you for contacting us.
-Our team will get back to you soon.`,
-      );
+      if (isGreeting) {
+        // Auto-reply FROM THIS SAME NUMBER (free text — inside the 24h window)
+        await sender.replyMessage(from, `Received: "${text}" 👋`);
+      } else {
+        console.log(`[${account.label}] No "hi" greeting — skipping auto-reply.`);
+      }
 
       return res.sendStatus(200);
     } catch (error) {
